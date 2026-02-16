@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "kesa-ff9cf"
+  },
+  "targets": {
+    "kesa-ff9cf": {
+      "hosting": {
+        "billing": [
+          "kesa-ff9cf"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

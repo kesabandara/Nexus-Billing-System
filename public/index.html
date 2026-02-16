@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PROBILL - Professional Billing System</title>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <style>
+        :root { --primary: #0984e3; --sidebar: #2d3436; --bg: #dfe6e9; --white: #ffffff; --success: #00b894; --danger: #d63031; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background-color: var(--bg); min-height: 100vh; overflow-x: hidden; display: flex; }
+        .hidden { display: none !important; }
+
+        /* Login Screen */
+        #login-page { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--sidebar); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+        .login-card { background: var(--white); padding: 40px; border-radius: 20px; width: 380px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .login-card h1 { color: var(--primary); margin-bottom: 10px; }
+        .login-card input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 10px; outline: none; }
+        .login-btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+
+        /* Main App */
+        #main-app { display: none; width: 100%; }
+        .sidebar { width: 260px; background: var(--sidebar); color: white; padding: 25px; position: fixed; height: 100%; }
+        .logo { font-size: 26px; font-weight: bold; letter-spacing: 2px; margin-bottom: 40px; display: block; color: var(--primary); }
+        .nav-links { list-style: none; }
+        .nav-links li { margin-bottom: 12px; }
+        .nav-links a { color: #b2bec3; text-decoration: none; padding: 12px 15px; display: flex; align-items: center; border-radius: 8px; transition: 0.3s; }
+        .nav-links a.active, .nav-links a:hover { background: var(--primary); color: white; }
+        .nav-links i { margin-right: 15px; font-size: 20px; }
+
+        .main-content { margin-left: 260px; width: calc(100% - 260px); padding: 30px; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+
+        /* Billing Form */
+        .input-grid { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 15px; margin-bottom: 25px; }
+        .btn-add { background-color: #00b894; color: white; height: 45px; margin-top: 18px; padding: 0 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold;}
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { text-align: left; background: #f1f2f6; padding: 15px; font-size: 13px; color: #636e72; }
+        td { padding: 15px; border-bottom: 1px solid #f1f2f6; font-size: 14px; }
+        .total-display { text-align: right; font-size: 24px; font-weight: bold; margin-top: 25px; color: #2d3436; }
+
+        /* Invoice Styling */
+        #invoice-view { max-width: 600px; margin: 0 auto; }
+        .invoice-header { text-align: center; border-bottom: 2px dashed #eee; padding-bottom: 20px; margin-bottom: 30px; }
+
+        @media print {
+            body { background: white; }
+            .sidebar, header, .input-grid, .billing-actions, .invoice-actions { display: none !important; }
+            #invoice-view { display: block !important; position: absolute; top: 0; width: 100%; }
+            .main-content { margin-left: 0; width: 100%; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-page">
+        <div class="login-card">
+            <h1>PROBILL</h1>
+            <p style="margin-bottom: 20px; color: #636e72;">Admin Access Only</p>
+            <input type="text" id="username" placeholder="Username">
+            <input type="password" id="password" placeholder="Password">
+            <button class="login-btn" onclick="handleLogin()">LOGIN</button>
+            <p id="login-error" style="color: red; margin-top: 10px; font-size: 13px; display: none;">Invalid Login!</p>
+        </div>
+    </div>
+
+    <div id="main-app">
+        <aside class="sidebar">
+            <span class="logo">PROBILL</span>
+            <ul class="nav-links">
+                <li><a href="#" id="nav-dash" class="active" onclick="showView('billing-view', 'nav-dash')"><i class='bx bxs-dashboard'></i> Dashboard</a></li>
+                <li><a href="#" id="nav-hist" onclick="showView('history-view', 'nav-hist')"><i class='bx bxs-time-five'></i> History</a></li>
+                <li><a href="#" onclick="location.reload()" style="color: #ff7675; margin-top: 20px;"><i class='bx bx-log-out'></i> Logout</a></li>
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            <header>
+                <h1 id="page-title">Billing Dashboard</h1>
+                <div id="status" style="color:red; font-weight:bold; font-size:12px; padding: 8px 15px; background: #fff; border-radius: 20px;">Connecting...</div>
+            </header>
+
+            <!-- 1. BILLING DASHBOARD -->
+            <div id="billing-view" class="view-section">
+                <div class="container">
+                    <div class="input-grid">
+                        <div><label style="font-size:12px;">Item Name</label><input type="text" id="itemName" placeholder="Milk..."></div>
+                        <div><label style="font-size:12px;">Price</label><input type="number" id="itemPrice" placeholder="0.00"></div>
+                        <div><label style="font-size:12px;">Qty</label><input type="number" id="itemQty" value="1"></div>
+                        <button class="btn-add" onclick="addItem()">Add</button>
+                    </div>
+                    <table>
+                        <thead><tr><th>Item</th><th>Price</th><th>Qty</th><th>Total</th><th>Action</th></tr></thead>
+                        <tbody id="cart-table"></tbody>
+                    </table>
+                    <div class="total-display">Grand Total: Rs. <span id="grand-total">0.00</span></div>
+                    <div class="billing-actions">
+                        <button class="login-btn" style="margin-top:20px; padding:15px;" onclick="generateAndSave()">GENERATE & SAVE INVOICE</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. SALES HISTORY -->
+            <div id="history-view" class="view-section hidden">
+                <div class="container">
+                    <h3>Sales History</h3><br>
+                    <table>
+                        <thead><tr><th>Date</th><th>Bill ID</th><th>Total</th><th>Action</th></tr></thead>
+                        <tbody id="history-table"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. INVOICE RECEIPT -->
+            <div id="invoice-view" class="view-section hidden">
+                <div class="container">
+                    <div class="invoice-header">
+                        <h2>PROBILL SOLUTIONS</h2>
+                        <p>No 45, Main Street, Colombo</p>
+                        <hr style="margin: 15px 0; border: 1px dashed #eee;">
+                        <h4>CASH RECEIPT</h4>
+                        <p>Date: <span id="pr-date"></span> | ID: <span id="pr-id"></span></p>
+                    </div>
+                    <table style="width:100%">
+                        <thead><tr><th>Description</th><th>Price</th><th>Qty</th><th>Total</th></tr></thead>
+                        <tbody id="pr-body"></tbody>
+                    </table>
+                    <div class="total-display" style="font-size:20px;">NET TOTAL: Rs. <span id="pr-total">0.00</span></div>
+                    <div class="invoice-actions" style="text-align:center; margin-top:30px;">
+                        <button class="login-btn" style="width:auto; margin-right:10px; background:#2d3436" onclick="window.print()">PRINT</button>
+                        <button class="login-btn" style="width:auto;" onclick="showView('billing-view', 'nav-dash')">BACK TO DASHBOARD</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCeOyuGg8tcJ-biAPwhF5qHb7JRhuF36vk",
+            authDomain: "kesa-ff9cf.firebaseapp.com",
+            projectId: "kesa-ff9cf",
+            storageBucket: "kesa-ff9cf.firebasestorage.app",
+            messagingSenderId: "819396425481",
+            appId: "1:819396425481:web:1961b3ab0690829ac305d8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        if(db) { const s = document.getElementById('status'); s.innerText = "Firebase Connected ●"; s.style.color = "green"; }
+
+        let cart = [];
+        let allSales = []; // පරණ බිල් ටික මෙතන තියාගන්නවා ආයේ බලන්න ඕන නිසා
+
+        // --- View Logic ---
+        window.showView = (vId, nId) => {
+            document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
+            document.getElementById(vId).classList.remove('hidden');
+            if(nId) {
+                document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+                document.getElementById(nId).classList.add('active');
+            }
+            const titles = { 'billing-view': 'Billing Dashboard', 'history-view': 'Sales History', 'invoice-view': 'Invoice Receipt' };
+            document.getElementById('page-title').innerText = titles[vId] || "Invoice";
+        };
+
+        // --- Auth ---
+        window.handleLogin = () => {
+            if(document.getElementById('username').value === "admin" && document.getElementById('password').value === "123") {
+                document.getElementById('login-page').classList.add('hidden');
+                document.getElementById('main-app').style.display = "block";
+                showView('billing-view', 'nav-dash');
+            } else { document.getElementById('login-error').style.display = "block"; }
+        };
+
+        // --- Billing ---
+        window.addItem = () => {
+            const n = document.getElementById('itemName').value;
+            const p = parseFloat(document.getElementById('itemPrice').value);
+            const q = parseInt(document.getElementById('itemQty').value);
+            if(n && p > 0) {
+                cart.push({ name: n, price: p, qty: q, sub: p * q });
+                renderCart();
+                document.getElementById('itemName').value = ""; document.getElementById('itemPrice').value = ""; document.getElementById('itemName').focus();
+            }
+        };
+
+        function renderCart() {
+            const b = document.getElementById('cart-table'); b.innerHTML = ""; let g = 0;
+            cart.forEach((it, i) => { g += it.sub; b.innerHTML += `<tr><td>${it.name}</td><td>${it.price}</td><td>${it.qty}</td><td>${it.sub}</td><td><button onclick="window.removeItem(${i})" style="color:red; border:none; background:none; cursor:pointer;"><i class='bx bxs-trash'></i></button></td></tr>`; });
+            document.getElementById('grand-total').innerText = g.toFixed(2);
+        }
+        window.removeItem = (i) => { cart.splice(i,1); renderCart(); };
+
+        // --- Save & View ---
+        window.generateAndSave = async () => {
+            if(cart.length === 0) return alert("Add items!");
+            const total = document.getElementById('grand-total').innerText;
+            const billId = "B-" + Math.floor(1000 + Math.random() * 9000);
+            const saleData = { billId, items: cart, total, date: new Date().toLocaleString(), timestamp: new Date() };
+            try {
+                await addDoc(collection(db, "sales"), saleData);
+                renderReceipt(saleData);
+                cart = []; renderCart();
+            } catch(e) { alert(e.message); }
+        };
+
+        function renderReceipt(data) {
+            document.getElementById('pr-id').innerText = data.billId;
+            document.getElementById('pr-date').innerText = data.date;
+            document.getElementById('pr-total').innerText = data.total;
+            document.getElementById('pr-body').innerHTML = data.items.map(i => `<tr><td>${i.name}</td><td>${i.price}</td><td>${i.qty}</td><td>${i.sub}</td></tr>`).join("");
+            showView('invoice-view');
+        }
+
+        // --- History & View Button Logic ---
+        onSnapshot(query(collection(db, "sales"), orderBy("timestamp", "desc")), (snap) => {
+            const h = document.getElementById('history-table'); h.innerHTML = "";
+            allSales = [];
+            snap.forEach(doc => {
+                const s = doc.data(); s.id = doc.id;
+                allSales.push(s);
+                h.innerHTML += `<tr><td>${s.date}</td><td>${s.billId}</td><td>Rs. ${s.total}</td><td><button onclick="window.viewSale('${s.id}')" style="background:var(--primary); color:white; border:none; padding:5px 15px; border-radius:5px; cursor:pointer;">View</button></td></tr>`;
+            });
+        });
+
+        window.viewSale = (id) => {
+            const sale = allSales.find(s => s.id === id);
+            if(sale) renderReceipt(sale);
+        };
+    </script>
+</body>
+</html>
